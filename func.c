@@ -42,4 +42,28 @@ Table *create_table(const char *name, const char **col_names,
     }
   }
   return table;
-};
+}
+
+void insert_row(Table *table, DataValue *values) {
+  if (table->capacity <= table->row_count) {
+    table->capacity *= 2;
+    table->rows = realloc(table->rows, table->capacity * sizeof(Row));
+    if (table->rows == NULL) {
+      return;
+    }
+  }
+  // table->rows[table->row_count].values = values;
+  Row *row = &table->rows[table->row_count];
+  row->values = malloc(table->columns_count * sizeof(DataValue));
+  if (row->values == NULL) {
+    return;
+  }
+  for (size_t i = 0; i < table->columns_count; ++i) {
+    if (table->columns[i].type == TYPE_STRING) {
+      row->values[i].string_val = strdup(values[i].string_val);
+    } else {
+      row->values[i] = values[i];
+    }
+  }
+  table->row_count++;
+}
