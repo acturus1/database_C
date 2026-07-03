@@ -17,7 +17,7 @@ typedef enum {
   TYPE_DOUBLE,
   TYPE_STRING,
   TYPE_BOOL,
-  TYPE_NOON
+  TYPE_NULL
 } DataType;
 
 typedef union {
@@ -51,7 +51,9 @@ struct Table {
 };
 
 struct Database {
-  Table *table[];
+  size_t capacity;
+  size_t table_count;
+  Table **table;
 };
 
 #endif

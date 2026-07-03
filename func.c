@@ -44,6 +44,29 @@ Table *create_table(const char *name, const char **col_names,
   return table;
 }
 
+void print_value(DataValue value, DataType type) {
+  switch (type) {
+  case TYPE_INT:
+    printf("%d", value.int_val);
+    break;
+  case TYPE_FLOAT:
+    printf("%f", value.float_val);
+    break;
+  case TYPE_DOUBLE:
+    printf("%lf", value.double_val);
+    break;
+  case TYPE_STRING:
+    printf("%s", value.string_val);
+    break;
+  case TYPE_BOOL:
+    printf("%s", value.bool_val ? "true" : "false");
+    break;
+  case TYPE_NULL:
+    printf("NULL");
+    break;
+  }
+}
+
 void insert_row(Table *table, DataValue *values) {
   if (table->capacity <= table->row_count) {
     table->capacity *= 2;
@@ -66,4 +89,27 @@ void insert_row(Table *table, DataValue *values) {
     }
   }
   table->row_count++;
+}
+
+DataValue get_cell_value(Table *table, size_t col_index, size_t row_index) {
+  if (row_index >= table->row_count || col_index >= table->columns_count) {
+    DataValue none = {0};
+    return none;
+  }
+  return table->rows[row_index].values[col_index];
+}
+
+DataType get_cell_type(Table *table, size_t col_index) {
+  if (col_index >= table->columns_count) {
+    return TYPE_NULL;
+  }
+  return table->columns[col_index].type;
+}
+
+void print_table(Table *table) {
+  for (size_t col = 0; col < table->columns_count; ++col) {
+    for (size_t row = 0; row < table->row_count; ++row) {
+      print_value(get_cell_value(table, col, row), get_cell_type(table, col));
+    }
+  }
 }
