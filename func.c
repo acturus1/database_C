@@ -4,6 +4,16 @@
 #include <string.h>
 
 Table *create_table(const char *name, const char **col_names,
+                    DataType *col_types, size_t col_count);
+void print_value(DataValue value, DataType type);
+void insert_row(Table *table, DataValue *values);
+DataValue get_cell_value(Table *table, size_t col_index, size_t row_index);
+DataType get_cell_type(Table *table, size_t col_index);
+void print_table(Table *table);
+Database *create_database(const char *name);
+void add_table_to_database(Database *database, Table *table);
+
+Table *create_table(const char *name, const char **col_names,
                     DataType *col_types, size_t col_count) {
   Table *table = malloc(sizeof(Table));
   if (table == NULL) {
@@ -11,6 +21,10 @@ Table *create_table(const char *name, const char **col_names,
   };
 
   table->name = strdup(name);
+  if (table->name == NULL) {
+    free(table);
+    return NULL;
+  }
   table->row_count = 0;
   table->capacity = 10;
   table->rows = malloc(table->capacity * sizeof(Row));
@@ -107,9 +121,47 @@ DataType get_cell_type(Table *table, size_t col_index) {
 }
 
 void print_table(Table *table) {
-  for (size_t col = 0; col < table->columns_count; ++col) {
-    for (size_t row = 0; row < table->row_count; ++row) {
+  for (size_t row = 0; row < table->row_count; row++) {
+    for (size_t col = 0; col < table->columns_count; col++) {
       print_value(get_cell_value(table, col, row), get_cell_type(table, col));
     }
   }
+}
+
+Database *create_database(const char *name) {
+  Database *database = malloc(sizeof(Database));
+  if (database == NULL) {
+    return NULL;
+  }
+  database->name = strdup(name);
+  if (database->name == NULL) {
+    free(database);
+    return NULL;
+  }
+  database->capacity = 10;
+  database->table_count = 0;
+  database->tables = malloc(database->capacity * sizeof(Table *));
+  if (database->tables == NULL) {
+    free(database->name); // т.к strdup выделил память под name
+    free(database);
+    return NULL;
+  }
+  return database;
+}
+
+void add_table_to_database(Database *database, Table *table) {
+  if (database == NULL || table == NULL) {
+    return;
+  }
+  if (database->table_count >= database->capacity) {
+    database->capacity *= 2;
+    Table **new_tables =
+        realloc(database->tables, sizeof(Table *) * database->capacity);
+    if (new_tables == NULL) {
+      return;
+    }
+    database->tables = new_tables;
+  }
+  database->tables[database->table_count] = table;
+  database->table_count++;
 }

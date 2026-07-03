@@ -51,9 +51,10 @@ struct Table {
 };
 
 struct Database {
+  char *name;
   size_t capacity;
   size_t table_count;
-  Table **table;
+  Table **tables;
 };
 
 #endif
