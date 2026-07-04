@@ -12,6 +12,7 @@ DataType get_cell_type(Table *table, size_t col_index);
 void print_table(Table *table);
 Database *create_database(const char *name);
 void add_table_to_database(Database *database, Table *table);
+void free_table(Table *table);
 
 Table *create_table(const char *name, const char **col_names,
                     DataType *col_types, size_t col_count) {
@@ -164,4 +165,22 @@ void add_table_to_database(Database *database, Table *table) {
   }
   database->tables[database->table_count] = table;
   database->table_count++;
+}
+
+void free_table(Table *table) {
+  free(table->name);
+  for (size_t i = 0; i < table->columns_count; ++i) {
+    free(table->columns[i].title);
+  }
+  free(table->columns);
+  for (size_t row = 0; row < table->row_count; ++row) {
+    for (size_t j = 0; j < table->columns_count; ++j) {
+      if (table->columns[j].type == TYPE_STRING) {
+        free(table->rows[row].values[j].string_val);
+      }
+    }
+    free(table->rows[row].values);
+  }
+  free(table->rows);
+  free(table);
 }
