@@ -13,6 +13,7 @@ void print_table(Table *table);
 Database *create_database(const char *name);
 void add_table_to_database(Database *database, Table *table);
 void free_table(Table *table);
+void free_database(Database *database);
 
 Table *create_table(const char *name, const char **col_names,
                     DataType *col_types, size_t col_count) {
@@ -30,29 +31,21 @@ Table *create_table(const char *name, const char **col_names,
   table->capacity = 10;
   table->rows = malloc(table->capacity * sizeof(Row));
   if (table->rows == NULL) {
-    free(table->name);
-    free(table);
+    free_table(table);
     return NULL;
   }
 
   table->columns_count = col_count;
   table->columns = malloc(sizeof(Column) * col_count);
   if (table->columns == NULL) {
-    free(table->rows);
-    free(table->name);
-    free(table);
+    free_table(table);
     return NULL;
   }
   for (size_t i = 0; i < col_count; ++i) {
     table->columns[i].title = strdup(col_names[i]);
     table->columns[i].type = col_types[i];
     if (table->columns[i].title == NULL) {
-      for (size_t j = 0; j < i; ++j) {
-        free(table->columns[j].title);
-      }
-      free(table->columns);
-      free(table->name);
-      free(table);
+      free_table(table);
       return NULL;
     }
   }
@@ -136,15 +129,14 @@ Database *create_database(const char *name) {
   }
   database->name = strdup(name);
   if (database->name == NULL) {
-    free(database);
+    free_database(database);
     return NULL;
   }
   database->capacity = 10;
   database->table_count = 0;
   database->tables = malloc(database->capacity * sizeof(Table *));
   if (database->tables == NULL) {
-    free(database->name); // т.к strdup выделил память под name
-    free(database);
+    free_database(database);
     return NULL;
   }
   return database;
@@ -168,6 +160,9 @@ void add_table_to_database(Database *database, Table *table) {
 }
 
 void free_table(Table *table) {
+  if (table == NULL) {
+    return;
+  }
   free(table->name);
   for (size_t i = 0; i < table->columns_count; ++i) {
     free(table->columns[i].title);
@@ -183,4 +178,16 @@ void free_table(Table *table) {
   }
   free(table->rows);
   free(table);
+}
+
+void free_database(Database *database) {
+  if (database == NULL) {
+    return;
+  }
+  for (size_t i = 0; i < database->table_count; ++i) {
+    free_table(database->tables[i]);
+  }
+  free(database->tables);
+  free(database->name);
+  free(database);
 }
