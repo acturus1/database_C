@@ -14,8 +14,8 @@ Database *create_database(const char *name);
 void add_table_to_database(Database *database, Table *table);
 void free_table(Table *table);
 void free_database(Database *database);
-void save_to_file(Database *database, const char *filename);
-void read_from_file(const char *filename);
+void save_database_to_file(Database *database, const char *filename);
+void read_database_from_file(const char *filename);
 // void read_from_file(Database *database, const char *filename);
 
 Table *create_table(const char *name, const char **col_names,
@@ -195,20 +195,26 @@ void free_database(Database *database) {
   free(database);
 }
 
-void read_from_file(const char *filename) {
+void read_database_from_file(const char *filename) {
   FILE *file = fopen(filename, "r");
   if (!file) {
     return;
   }
 
-  fseek(file, 0, SEEK_END);
+  if (fseek(file, 0, SEEK_END) != 0) {
+    return;
+  }
   int file_size = ftell(file);
-  fseek(file, 0, SEEK_SET);
+  if (file_size == 0) {
+    return;
+  }
+  if (fseek(file, 0, SEEK_SET) != 0) {
+    return;
+  }
+
   char *input = malloc(sizeof(char) * file_size);
   while (fgets(input, file_size, file)) {
     printf("%s", input);
   }
   fclose(file);
 }
-
-int main() { read_from_file("txt.txt"); }
