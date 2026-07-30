@@ -1,4 +1,5 @@
 #include "structs.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,8 +16,7 @@ void add_table_to_database(Database *database, Table *table);
 void free_table(Table *table);
 void free_database(Database *database);
 void save_database_to_file(Database *database, const char *filename);
-void read_database_from_file(const char *filename);
-// void read_from_file(Database *database, const char *filename);
+void read_from_file(Database *database, const char *filename);
 
 Table *create_table(const char *name, const char **col_names,
                     DataType *col_types, size_t col_count) {
@@ -195,26 +195,60 @@ void free_database(Database *database) {
   free(database);
 }
 
-void read_database_from_file(const char *filename) {
-  FILE *file = fopen(filename, "r");
+// void read_database_from_file(const char *filename) {
+//   FILE *file = fopen(filename, "r");
+//   if (!file) {
+//     return;
+//   }
+//
+//   if (fseek(file, 0, SEEK_END) != 0) {
+//     return;
+//   }
+//   int file_size = ftell(file);
+//   if (file_size == 0) {
+//     return;
+//   }
+//   if (fseek(file, 0, SEEK_SET) != 0) {
+//     return;
+//   }
+//
+//   char *input = malloc(sizeof(char) * file_size);
+//   while (fgets(input, file_size, file)) {
+//     printf("%s", input);
+//   }
+//   fclose(file);
+// }
+
+void save_database_to_file(Database *database, const char *filename) {
+  FILE *file = fopen(filename, "wb");
   if (!file) {
     return;
   }
+  uint64_t code = 1234;
+  fwrite(&code, sizeof(uint64_t), 1, file);
 
-  if (fseek(file, 0, SEEK_END) != 0) {
-    return;
-  }
-  int file_size = ftell(file);
-  if (file_size == 0) {
-    return;
-  }
-  if (fseek(file, 0, SEEK_SET) != 0) {
-    return;
+  uint32_t table_count = (uint32_t)database->table_count;
+  fwrite(&table_count, sizeof(uint32_t), 1, file);
+
+  uint64_t path_to_table_legend = 0;
+  for (uint32_t i = 0; i < table_count; ++i) {
+    fwrite(&path_to_table_legend, sizeof(uint64_t), 1, file);
   }
 
-  char *input = malloc(sizeof(char) * file_size);
-  while (fgets(input, file_size, file)) {
-    printf("%s", input);
+  uint64_t size_of_start_path_to_tables =
+      (uint64_t)(sizeof(code) + sizeof(table_count));
+
+  // таблица 1
+  for (uint32_t i = 0; i < table_count; ++i) {
+    uint64_t path_to_current_table = ftell(file);
+    if (fseek(file,
+              size_of_start_path_to_tables + (uint64_t)(sizeof(uint64_t) * i),
+              SEEK_SET) != 0) {
+      return;
+    }
+    fwrite(&path_to_current_table, sizeof(uint64_t), 1,
+           file); // эт кароче место в файле где находиться начало таблицы i
   }
+
   fclose(file);
 }
