@@ -263,7 +263,7 @@ void save_table_to_file(Table *table, FILE *file) {
     uint64_t column_name_length = table->columns[i].name_length_column;
     fwrite(&column_name_length, sizeof(uint64_t), 1, file);
 
-    fwrite(&table->columns[i].name, column_name_length, 1, file);
+    fwrite(table->columns[i].name, column_name_length, 1, file);
 
     uint8_t type_code =
         (uint8_t)table->columns[i]
@@ -314,7 +314,7 @@ void save_database_to_file(Database *database, const char *filename) {
 
     fseek(file, path_to_current_table, SEEK_SET);
     save_table_to_file(database->tables[i], file);
-    fseek(file, 0, SEEK_SET);
+    fseek(file, 0, SEEK_END);
   }
 
   fclose(file);
