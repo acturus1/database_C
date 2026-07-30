@@ -7,7 +7,7 @@
 Table *create_table(const char *name, const char **col_names,
                     DataType *col_types, size_t col_count);
 void print_value(DataValue value, DataType type);
-void insert_row(Table *table, DataValue *values);
+void insert_row(Table *table, Row *row_insert);
 DataValue get_cell_value(Table *table, size_t col_index, size_t row_index);
 DataType get_cell_type(Table *table, size_t col_index);
 void print_table(Table *table);
@@ -15,8 +15,11 @@ Database *create_database(const char *name);
 void add_table_to_database(Database *database, Table *table);
 void free_table(Table *table);
 void free_database(Database *database);
-void save_database_to_file(Database *database, const char *filename);
 void read_from_file(Database *database, const char *filename);
+void save_database_to_file(Database *database, const char *filename);
+void save_table_to_file(Table *table, FILE *file);
+void save_row_to_file(Row row, Column *columns, size_t colimns_count,
+                      FILE *file);
 
 Table *create_table(const char *name, const char **col_names,
                     DataType *col_types, size_t col_count) {
@@ -30,6 +33,8 @@ Table *create_table(const char *name, const char **col_names,
     free(table);
     return NULL;
   }
+  table->name_length_table = strlen(name);
+
   table->row_count = 0;
   table->capacity = 10;
   table->rows = malloc(table->capacity * sizeof(Row));
@@ -45,9 +50,10 @@ Table *create_table(const char *name, const char **col_names,
     return NULL;
   }
   for (size_t i = 0; i < col_count; ++i) {
-    table->columns[i].title = strdup(col_names[i]);
+    table->columns[i].name = strdup(col_names[i]);
+    table->columns[i].name_length_column = strlen(col_names[i]);
     table->columns[i].type = col_types[i];
-    if (table->columns[i].title == NULL) {
+    if (table->columns[i].name == NULL) {
       free_table(table);
       return NULL;
     }
@@ -72,13 +78,10 @@ void print_value(DataValue value, DataType type) {
   case TYPE_BOOL:
     printf("%s", value.bool_val ? "true" : "false");
     break;
-  case TYPE_NULL:
-    printf("NULL");
-    break;
   }
 }
 
-void insert_row(Table *table, DataValue *values) {
+void insert_row(Table *table, Row *row_insert) {
   if (table->capacity <= table->row_count) {
     table->capacity *= 2;
     table->rows = realloc(table->rows, table->capacity * sizeof(Row));
@@ -89,40 +92,23 @@ void insert_row(Table *table, DataValue *values) {
   // table->rows[table->row_count].values = values;
   Row *row = &table->rows[table->row_count];
   row->values = malloc(table->columns_count * sizeof(DataValue));
-  if (row->values == NULL) {
+  row->is_null = malloc(table->columns_count * sizeof(bool));
+  if (row->values == NULL || row->is_null == NULL) {
+    free(row->values);
+    free(row->is_null);
     return;
   }
   for (size_t i = 0; i < table->columns_count; ++i) {
-    if (table->columns[i].type == TYPE_STRING) {
-      row->values[i].string_val = strdup(values[i].string_val);
-    } else {
-      row->values[i] = values[i];
+    row->is_null[i] = row_insert->is_null[i];
+    if (!row->is_null[i]) {
+      if (table->columns[i].type == TYPE_STRING) {
+        row->values[i].string_val = strdup(row_insert->values[i].string_val);
+      } else {
+        row->values[i] = row_insert->values[i];
+      }
     }
   }
   table->row_count++;
-}
-
-DataValue get_cell_value(Table *table, size_t col_index, size_t row_index) {
-  if (row_index >= table->row_count || col_index >= table->columns_count) {
-    DataValue none = {0};
-    return none;
-  }
-  return table->rows[row_index].values[col_index];
-}
-
-DataType get_cell_type(Table *table, size_t col_index) {
-  if (col_index >= table->columns_count) {
-    return TYPE_NULL;
-  }
-  return table->columns[col_index].type;
-}
-
-void print_table(Table *table) {
-  for (size_t row = 0; row < table->row_count; row++) {
-    for (size_t col = 0; col < table->columns_count; col++) {
-      print_value(get_cell_value(table, col, row), get_cell_type(table, col));
-    }
-  }
 }
 
 Database *create_database(const char *name) {
@@ -168,7 +154,7 @@ void free_table(Table *table) {
   }
   free(table->name);
   for (size_t i = 0; i < table->columns_count; ++i) {
-    free(table->columns[i].title);
+    free(table->columns[i].name);
   }
   free(table->columns);
   for (size_t row = 0; row < table->row_count; ++row) {
@@ -219,6 +205,70 @@ void free_database(Database *database) {
 //   fclose(file);
 // }
 
+void save_value_to_file(DataValue value, DataType type, bool is_null,
+                        FILE *file) {
+  if (is_null) {
+    uint8_t is_null_int = 1;
+    fwrite(&is_null_int, sizeof(uint8_t), 1, file);
+  } else {
+    uint8_t is_null_int = 0;
+    fwrite(&is_null_int, sizeof(uint8_t), 1, file);
+  }
+
+  switch (type) {
+  case TYPE_INT:
+    fwrite(&value, sizeof(uint32_t), 1, file);
+    break;
+  case TYPE_FLOAT:
+    fwrite(&value, sizeof(uint32_t), 1, file);
+    break;
+  case TYPE_DOUBLE:
+    fwrite(&value, sizeof(uint32_t), 1, file);
+    break;
+  case TYPE_STRING:
+    fwrite(&value, sizeof(uint32_t), 1, file);
+    break;
+  case TYPE_BOOL:
+    fwrite(&value, sizeof(uint32_t), 1, file);
+    break;
+  case TYPE_NULL:
+    break;
+  }
+}
+
+void save_row_to_file(Row row, Column *columns, size_t colimns_count,
+                      FILE *file) {
+  for (uint64_t i = 0; i < (uint64_t)colimns_count; ++i) {
+    save_value_to_file(row.values[i], row.is_null[i], file);
+  }
+}
+
+void save_table_to_file(Table *table, FILE *file) {
+  int64_t table_name_length = (int64_t)table->name_length_table;
+  fwrite(&table_name_length, sizeof(uint64_t), 1, file);
+  fwrite(&table->name, table_name_length, 1, file);
+
+  int64_t table_col_count = (int64_t)table->columns_count;
+  fwrite(&table_name_length, sizeof(uint64_t), 1, file);
+
+  for (uint64_t i = 0; i < table_col_count; ++i) {
+    uint64_t column_name_length = table->columns[i].name_length_column;
+    fwrite(&column_name_length, sizeof(uint64_t), 1, file);
+
+    fwrite(&table->columns[i].name, column_name_length, i, file);
+
+    uint8_t type_length = (uint8_t)sizeof(
+        DataType); // т.к у меня мало типов можно использовать uint8_t
+    fwrite(&table->columns[i].type, sizeof(type_length), 1, file);
+  }
+
+  uint64_t table_row_count = (uint64_t)table->row_count;
+  for (uint64_t i = 0; i < table_row_count; ++i) {
+    save_row_to_file(table->rows[i], table->columns, table->columns_count,
+                     file);
+  }
+}
+
 void save_database_to_file(Database *database, const char *filename) {
   FILE *file = fopen(filename, "wb");
   if (!file) {
@@ -238,16 +288,21 @@ void save_database_to_file(Database *database, const char *filename) {
   uint64_t size_of_start_path_to_tables =
       (uint64_t)(sizeof(code) + sizeof(table_count));
 
-  // таблица 1
   for (uint32_t i = 0; i < table_count; ++i) {
     uint64_t path_to_current_table = ftell(file);
-    if (fseek(file,
-              size_of_start_path_to_tables + (uint64_t)(sizeof(uint64_t) * i),
-              SEEK_SET) != 0) {
-      return;
-    }
+    //   if (fseek(file,
+    //             size_of_start_path_to_tables + (uint64_t)(sizeof(uint64_t)
+    //             * i), SEEK_SET) != 0) {
+    //     return;
+    //   }
+    fseek(file, size_of_start_path_to_tables + (uint64_t)(sizeof(uint64_t) * i),
+          SEEK_SET);
+
     fwrite(&path_to_current_table, sizeof(uint64_t), 1,
            file); // эт кароче место в файле где находиться начало таблицы i
+
+    fseek(file, path_to_current_table, SEEK_SET);
+    save_table_to_file(database->tables[i], file);
   }
 
   fclose(file);
