@@ -94,10 +94,13 @@ void insert_row(Table *table, Row *row_insert) {
   // table->rows[table->row_count].values = values;
   Row *row = &table->rows[table->row_count];
   row->values = malloc(table->columns_count * sizeof(DataValue));
+  if (row->values == NULL) {
+    return;
+  }
+
   row->is_null = malloc(table->columns_count * sizeof(bool));
-  if (row->values == NULL || row->is_null == NULL) {
+  if (row->is_null == NULL) {
     free(row->values);
-    free(row->is_null);
     return;
   }
   for (size_t i = 0; i < table->columns_count; ++i) {
@@ -166,6 +169,7 @@ void free_table(Table *table) {
       }
     }
     free(table->rows[row].values);
+    free(table->rows[row].is_null);
   }
   free(table->rows);
   free(table);
@@ -314,7 +318,6 @@ void save_database_to_file(Database *database, const char *filename) {
 
     fseek(file, path_to_current_table, SEEK_SET);
     save_table_to_file(database->tables[i], file);
-    fseek(file, 0, SEEK_END);
   }
 
   fclose(file);
