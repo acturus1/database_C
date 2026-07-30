@@ -20,6 +20,8 @@ void save_database_to_file(Database *database, const char *filename);
 void save_table_to_file(Table *table, FILE *file);
 void save_row_to_file(Row row, Column *columns, size_t colimns_count,
                       FILE *file);
+void save_value_to_file(DataValue value, DataType type, bool is_null,
+                        FILE *file);
 
 Table *create_table(const char *name, const char **col_names,
                     DataType *col_types, size_t col_count) {
@@ -216,53 +218,62 @@ void save_value_to_file(DataValue value, DataType type, bool is_null,
   }
 
   switch (type) {
-  case TYPE_INT:
-    fwrite(&value, sizeof(uint32_t), 1, file);
+  case TYPE_INT: {
+    fwrite(&value.int_val, sizeof(uint32_t), 1, file);
     break;
-  case TYPE_FLOAT:
-    fwrite(&value, sizeof(uint32_t), 1, file);
+  }
+  case TYPE_FLOAT: {
+    fwrite(&value.float_val, sizeof(float), 1, file);
     break;
-  case TYPE_DOUBLE:
-    fwrite(&value, sizeof(uint32_t), 1, file);
+  }
+  case TYPE_DOUBLE: {
+    fwrite(&value.double_val, sizeof(double), 1, file);
     break;
-  case TYPE_STRING:
-    fwrite(&value, sizeof(uint32_t), 1, file);
+  }
+  case TYPE_STRING: {
+    uint64_t value_str_len = (uint64_t)strlen(value.string_val);
+    fwrite(&value_str_len, sizeof(value_str_len), 1, file);
+    fwrite(&value.string_val, value_str_len, 1, file);
     break;
-  case TYPE_BOOL:
-    fwrite(&value, sizeof(uint32_t), 1, file);
+  }
+  case TYPE_BOOL: {
+    uint8_t bool_to_int = (value.bool_val) ? 0 : 1;
+    fwrite(&bool_to_int, sizeof(uint8_t), 1, file);
     break;
-  case TYPE_NULL:
-    break;
+  }
   }
 }
 
 void save_row_to_file(Row row, Column *columns, size_t colimns_count,
                       FILE *file) {
   for (uint64_t i = 0; i < (uint64_t)colimns_count; ++i) {
-    save_value_to_file(row.values[i], row.is_null[i], file);
+    save_value_to_file(row.values[i], columns[i].type, row.is_null[i], file);
   }
 }
 
 void save_table_to_file(Table *table, FILE *file) {
-  int64_t table_name_length = (int64_t)table->name_length_table;
+  uint64_t table_name_length = (uint64_t)table->name_length_table;
   fwrite(&table_name_length, sizeof(uint64_t), 1, file);
-  fwrite(&table->name, table_name_length, 1, file);
+  fwrite(table->name, table_name_length, 1, file);
 
-  int64_t table_col_count = (int64_t)table->columns_count;
-  fwrite(&table_name_length, sizeof(uint64_t), 1, file);
+  uint64_t table_col_count = (uint64_t)table->columns_count;
+  fwrite(&table_col_count, sizeof(uint64_t), 1, file);
 
   for (uint64_t i = 0; i < table_col_count; ++i) {
     uint64_t column_name_length = table->columns[i].name_length_column;
     fwrite(&column_name_length, sizeof(uint64_t), 1, file);
 
-    fwrite(&table->columns[i].name, column_name_length, i, file);
+    fwrite(&table->columns[i].name, column_name_length, 1, file);
 
-    uint8_t type_length = (uint8_t)sizeof(
-        DataType); // т.к у меня мало типов можно использовать uint8_t
-    fwrite(&table->columns[i].type, sizeof(type_length), 1, file);
+    uint8_t type_code =
+        (uint8_t)table->columns[i]
+            .type; // т.к у меня мало типов можно использовать uint8_t
+    fwrite(&type_code, sizeof(type_code), 1, file);
   }
 
   uint64_t table_row_count = (uint64_t)table->row_count;
+  fwrite(&table_row_count, sizeof(table_row_count), 1, file);
+
   for (uint64_t i = 0; i < table_row_count; ++i) {
     save_row_to_file(table->rows[i], table->columns, table->columns_count,
                      file);
@@ -303,6 +314,7 @@ void save_database_to_file(Database *database, const char *filename) {
 
     fseek(file, path_to_current_table, SEEK_SET);
     save_table_to_file(database->tables[i], file);
+    fseek(file, 0, SEEK_SET);
   }
 
   fclose(file);
