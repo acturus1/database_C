@@ -15,13 +15,13 @@ Database *create_database(const char *name);
 void add_table_to_database(Database *database, Table *table);
 void free_table(Table *table);
 void free_database(Database *database);
-void read_from_file(Database *database, const char *filename);
-void save_database_to_file(Database *database, const char *filename);
+void save_database_to_file(Database *database, char *filename);
 void save_table_to_file(Table *table, FILE *file);
 void save_row_to_file(Row row, Column *columns, size_t colimns_count,
                       FILE *file);
 void save_value_to_file(DataValue value, DataType type, bool is_null,
                         FILE *file);
+void read_database_from_file(Database *database, char *filename);
 
 Table *create_table(const char *name, const char **col_names,
                     DataType *col_types, size_t col_count) {
@@ -93,6 +93,7 @@ void insert_row(Table *table, Row *row_insert) {
   }
   // table->rows[table->row_count].values = values;
   Row *row = &table->rows[table->row_count];
+  row->system_id = table->row_count + 1;
   row->values = malloc(table->columns_count * sizeof(DataValue));
   if (row->values == NULL) {
     return;
@@ -284,7 +285,7 @@ void save_table_to_file(Table *table, FILE *file) {
   }
 }
 
-void save_database_to_file(Database *database, const char *filename) {
+void save_database_to_file(Database *database, char *filename) {
   FILE *file = fopen(filename, "wb");
   if (!file) {
     return;
@@ -319,6 +320,18 @@ void save_database_to_file(Database *database, const char *filename) {
     fseek(file, path_to_current_table, SEEK_SET);
     save_table_to_file(database->tables[i], file);
   }
+
+  fclose(file);
+}
+
+void read_database_from_file(Database *database, char *filename) {
+  FILE *file = fopen(filename, "rb");
+  database->name = filename;
+  uint64_t tmp_uint64_t;
+  fread(&tmp_uint64_t, sizeof(uint64_t), 1, file);
+  uint64_t table_count;
+  fread(&table_count, sizeof(uint64_t), 1, file);
+  database->table_count = (size_t)table_count;
 
   fclose(file);
 }
