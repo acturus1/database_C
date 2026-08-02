@@ -22,6 +22,11 @@ void save_row_to_file(Row row, Column *columns, size_t colimns_count,
 void save_value_to_file(DataValue value, DataType type, bool is_null,
                         FILE *file);
 void read_database_from_file(Database *database, char *filename);
+void read_table_from_file(Table *table, FILE *file);
+void read_row_from_file(Row *row, Column *columns, size_t colimns_count,
+                        FILE *file);
+void read_value_from_file(DataValue *value, DataType type, bool *is_null,
+                          FILE *file);
 
 Table *create_table(const char *name, const char **col_names,
                     DataType *col_types, size_t col_count) {
@@ -93,7 +98,7 @@ void insert_row(Table *table, Row *row_insert) {
   }
   // table->rows[table->row_count].values = values;
   Row *row = &table->rows[table->row_count];
-  row->system_id = table->row_count + 1;
+  // TODO row->system_id = table->row_count + 1;
   row->values = malloc(table->columns_count * sizeof(DataValue));
   if (row->values == NULL) {
     return;
@@ -188,30 +193,6 @@ void free_database(Database *database) {
   free(database);
 }
 
-// void read_database_from_file(const char *filename) {
-//   FILE *file = fopen(filename, "r");
-//   if (!file) {
-//     return;
-//   }
-//
-//   if (fseek(file, 0, SEEK_END) != 0) {
-//     return;
-//   }
-//   int file_size = ftell(file);
-//   if (file_size == 0) {
-//     return;
-//   }
-//   if (fseek(file, 0, SEEK_SET) != 0) {
-//     return;
-//   }
-//
-//   char *input = malloc(sizeof(char) * file_size);
-//   while (fgets(input, file_size, file)) {
-//     printf("%s", input);
-//   }
-//   fclose(file);
-// }
-
 void save_value_to_file(DataValue value, DataType type, bool is_null,
                         FILE *file) {
   if (is_null) {
@@ -270,9 +251,7 @@ void save_table_to_file(Table *table, FILE *file) {
 
     fwrite(table->columns[i].name, column_name_length, 1, file);
 
-    uint8_t type_code =
-        (uint8_t)table->columns[i]
-            .type; // т.к у меня мало типов можно использовать uint8_t
+    uint8_t type_code = (uint8_t)table->columns[i].type;
     fwrite(&type_code, sizeof(type_code), 1, file);
   }
 
@@ -324,14 +303,136 @@ void save_database_to_file(Database *database, char *filename) {
   fclose(file);
 }
 
+void read_value_from_file(DataValue *value, DataType type, bool *is_null,
+                          FILE *file) {
+  uint8_t is_null_int;
+  fread(&is_null_int, sizeof(uint8_t), 1, file);
+  *is_null = (is_null_int == 1);
+
+  if (!(*is_null)) {
+    switch (type) {
+    case TYPE_INT: {
+      fread(&value->int_val, sizeof(uint32_t), 1, file);
+      break;
+    }
+    case TYPE_FLOAT: {
+      fread(&value->float_val, sizeof(float), 1, file);
+      break;
+    }
+    case TYPE_DOUBLE: {
+      fread(&value->double_val, sizeof(double), 1, file);
+      break;
+    }
+    case TYPE_STRING: {
+      uint64_t value_str_len;
+      fread(&value_str_len, sizeof(value_str_len), 1, file);
+      value->string_val = malloc(value_str_len + 1);
+      value->string_val[value_str_len] = '\0';
+      fread(&value->string_val, value_str_len, 1, file);
+      break;
+    }
+    case TYPE_BOOL: {
+      uint8_t bool_to_int;
+      fread(&bool_to_int, sizeof(uint8_t), 1, file);
+      value->bool_val = (bool_to_int == 1);
+      break;
+    }
+    }
+  }
+}
+
+void read_row_from_file(Row *row, Column *columns, size_t colimns_count,
+                        FILE *file) {
+  for (uint64_t i = 0; i < (uint64_t)colimns_count; ++i) {
+    read_value_from_file(&row->values[i], columns[i].type, &row->is_null[i],
+                         file);
+  }
+}
+
+void read_table_from_file(Table *table, FILE *file) {
+  uint64_t table_name_length;
+  fread(&table_name_length, sizeof(uint64_t), 1, file);
+  table->name_length_table = table_name_length;
+  table->name = malloc(sizeof(char) * table_name_length + 1);
+  fread(table->name, table_name_length, 1, file);
+  table->name[table_name_length] = '\0';
+
+  uint64_t table_col_count;
+  fread(&table_col_count, sizeof(uint64_t), 1, file);
+
+  table->columns_count = (size_t)table_col_count;
+  table->columns = malloc(table_col_count * sizeof(Column));
+
+  for (uint64_t i = 0; i < table_col_count; ++i) {
+    uint64_t column_name_length;
+    fread(&column_name_length, sizeof(uint64_t), 1, file);
+    table->columns[i].name_length_column = column_name_length;
+
+    table->columns[i].name = malloc(column_name_length + 1);
+    table->columns[i].name[column_name_length] = '\0';
+    fread(table->columns[i].name, column_name_length, 1, file);
+
+    uint8_t type_code;
+    fread(&type_code, sizeof(type_code), 1, file);
+    table->columns[i].type = (DataType)type_code;
+  }
+
+  uint64_t table_row_count;
+  fread(&table_row_count, sizeof(table_row_count), 1, file);
+  table->capacity =
+      (table_row_count > 10) ? (size_t)table_row_count : (size_t)10;
+  table->row_count = (size_t)table_row_count;
+  table->rows = malloc(table->capacity * sizeof(Row));
+
+  for (uint64_t i = 0; i < table_row_count; ++i) {
+    table->rows[i].values = malloc(table_col_count * sizeof(DataValue));
+    table->rows[i].is_null = malloc(table_col_count * sizeof(bool));
+    // TODO table->rows[i].system_id = i + 1;
+
+    read_row_from_file(&table->rows[i], table->columns, table->columns_count,
+                       file);
+  }
+}
+
 void read_database_from_file(Database *database, char *filename) {
   FILE *file = fopen(filename, "rb");
-  database->name = filename;
-  uint64_t tmp_uint64_t;
-  fread(&tmp_uint64_t, sizeof(uint64_t), 1, file);
-  uint64_t table_count;
-  fread(&table_count, sizeof(uint64_t), 1, file);
-  database->table_count = (size_t)table_count;
+  if (!file) {
+    return;
+  }
+  uint64_t code;
+  fread(&code, sizeof(uint64_t), 1, file);
+  if (code != 1234) {
+    fclose(file);
+    return;
+  }
 
+  uint32_t table_count;
+  fread(&table_count, sizeof(uint32_t), 1, file);
+  database->table_count = table_count;
+
+  database->capacity = (table_count > 10) ? (size_t)table_count : (size_t)10;
+  database->tables = malloc(database->capacity * sizeof(Table *));
+
+  uint64_t *path_to_tables = malloc(sizeof(uint64_t) * table_count);
+  fread(path_to_tables, sizeof(uint64_t), table_count, file);
+
+  for (uint32_t i = 0; i < table_count; ++i) {
+    Table *table = malloc(sizeof(Table));
+    table->rows = NULL;
+    table->columns = NULL;
+    table->capacity = 0;
+    table->row_count = 0;
+    table->columns_count = 0;
+
+    uint64_t path_to_current_table = ftell(file);
+
+    fseek(file, path_to_tables[i], SEEK_SET);
+
+    read_table_from_file(table, file);
+
+    database->tables[i] = table;
+  }
+
+  free(path_to_tables);
   fclose(file);
 }

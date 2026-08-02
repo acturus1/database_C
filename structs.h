@@ -34,8 +34,8 @@ struct Row {
   bool *is_null;
 
   // не реализованно на тек момент
-  size_t system_id;
-  bool is_deleted;
+  //  size_t system_id;
+  //  bool is_deleted;
 };
 
 struct Column {
