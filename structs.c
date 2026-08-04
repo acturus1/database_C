@@ -1,6 +1,3 @@
-#ifndef STRUCTS_H
-#define STRUCTS_H
-
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -65,5 +62,3 @@ struct Database {
   size_t table_count;
   Table **tables; // массив указателей на tables
 };
-
-#endif

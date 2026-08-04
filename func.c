@@ -8,9 +8,6 @@ Table *create_table(const char *name, const char **col_names,
                     DataType *col_types, size_t col_count);
 void print_value(DataValue value, DataType type);
 void insert_row(Table *table, Row *row_insert);
-DataValue get_cell_value(Table *table, size_t col_index, size_t row_index);
-DataType get_cell_type(Table *table, size_t col_index);
-void print_table(Table *table);
 Database *create_database(const char *name);
 void add_table_to_database(Database *database, Table *table);
 void free_table(Table *table);
