@@ -126,30 +126,30 @@ void print_table(Table *table) {
   clear_screen();
   size_t rows = 0;
   size_t cols = 0;
-  size_t table_length = 0;
+  size_t table_width = 0;
   size_t table_height = 0;
   size_t *rows_size = malloc(sizeof(size_t) * table->columns_count);
 
   get_screen_width(&rows, &cols);
-  table_length = get_rows_size(table, rows_size);
-  table_height = table->columns_count;
+  table_width = get_rows_size(table, rows_size);
+  table_height = table->row_count;
 
-  for (size_t i = 0; i < (rows - table_length) / 2; ++i) {
+  for (size_t i = 0; i < (rows - table_height) / 2; ++i) {
     printf("\n");
   }
 
-  printf("%*c", (int)(cols - table_height) / 2, ' ');
+  printf("%*c", (int)(cols - table_width) / 2, ' ');
+
   for (size_t i = 0; i < table->columns_count; ++i) {
     if (i > 0) {
       printf("|");
     }
-    printf("%s", table->columns[i].name);
+    printf("%-*s", (int)rows_size[i], table->columns[i].name);
   }
   printf("\n");
 
-  // const char **table_str = malloc(table_length * table_height);
   for (size_t i = 0; i < table->row_count; ++i) {
-    printf("%*c", (int)(cols - table_height) / 2, ' ');
+    printf("%*c", (int)(cols - table_width) / 2, ' ');
     for (size_t j = 0; j < table->columns_count; ++j) {
       if (j > 0) {
         printf("|");
