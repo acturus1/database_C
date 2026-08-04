@@ -63,19 +63,22 @@ size_t get_value_size(DataValue value, DataType type) {
 void print_value(DataValue value, DataType type, size_t padding) {
   switch (type) {
   case TYPE_INT:
-    printf("%d", value.int_val);
+    printf("%-*d", (int)padding, value.int_val);
     break;
   case TYPE_FLOAT:
-    printf("%f", value.float_val);
+    printf("%-*f", (int)padding, value.float_val);
     break;
   case TYPE_DOUBLE:
-    printf("%lf", value.double_val);
+    printf("%-*lf", (int)padding, value.double_val);
     break;
   case TYPE_STRING:
-    printf("%s", value.string_val);
+    printf("%-*s", (int)padding, value.string_val);
     break;
   case TYPE_BOOL:
-    printf("%s", value.bool_val ? "true" : "false");
+    printf("%-*s", (int)padding, value.bool_val ? "true" : "false");
+    break;
+  default:
+    printf("%-*s", (int)padding, "?");
     break;
   }
 }
@@ -120,6 +123,7 @@ size_t get_rows_size(Table *table, size_t *result) {
 }
 
 void print_table(Table *table) {
+  clear_screen();
   size_t rows = 0;
   size_t cols = 0;
   size_t table_length = 0;
@@ -128,22 +132,20 @@ void print_table(Table *table) {
 
   get_screen_width(&rows, &cols);
   table_length = get_rows_size(table, rows_size);
-  table_height = table->columns_count + 1;
+  table_height = table->columns_count;
 
-  for (size_t i = 0; i < (rows - table_height) / 2; ++i) {
+  for (size_t i = 0; i < (rows - table_length) / 2; ++i) {
     printf("\n");
   }
 
-  //  for (size_t i = 0; i < padding; ++i) {
-  //    printf(" ");
-  //  }
-
+  printf("%*c", (int)(cols - table_height) / 2, ' ');
   for (size_t i = 0; i < table->columns_count; ++i) {
     if (i > 0) {
       printf("|");
     }
     printf("%s", table->columns[i].name);
   }
+  printf("\n");
 
   // const char **table_str = malloc(table_length * table_height);
   for (size_t i = 0; i < table->row_count; ++i) {
@@ -153,7 +155,7 @@ void print_table(Table *table) {
         printf("|");
       }
       print_value(table->rows[i].values[j], table->columns[j].type,
-                  rows_size[i]);
+                  rows_size[j]);
     }
     printf("\n");
   }
