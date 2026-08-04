@@ -1,4 +1,4 @@
-#include "structs.c"
+#include "structs.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,7 +6,6 @@
 
 Table *create_table(const char *name, const char **col_names,
                     DataType *col_types, size_t col_count);
-void print_value(DataValue value, DataType type);
 void insert_row(Table *table, Row *row_insert);
 Database *create_database(const char *name);
 void add_table_to_database(Database *database, Table *table);
@@ -63,26 +62,6 @@ Table *create_table(const char *name, const char **col_names,
     }
   }
   return table;
-}
-
-void print_value(DataValue value, DataType type) {
-  switch (type) {
-  case TYPE_INT:
-    printf("%d", value.int_val);
-    break;
-  case TYPE_FLOAT:
-    printf("%f", value.float_val);
-    break;
-  case TYPE_DOUBLE:
-    printf("%lf", value.double_val);
-    break;
-  case TYPE_STRING:
-    printf("%s", value.string_val);
-    break;
-  case TYPE_BOOL:
-    printf("%s", value.bool_val ? "true" : "false");
-    break;
-  }
 }
 
 void insert_row(Table *table, Row *row_insert) {
@@ -324,8 +303,8 @@ void read_value_from_file(DataValue *value, DataType type, bool *is_null,
       uint64_t value_str_len;
       fread(&value_str_len, sizeof(value_str_len), 1, file);
       value->string_val = malloc(value_str_len + 1);
+      fread(value->string_val, value_str_len, 1, file);
       value->string_val[value_str_len] = '\0';
-      fread(&value->string_val, value_str_len, 1, file);
       break;
     }
     case TYPE_BOOL: {

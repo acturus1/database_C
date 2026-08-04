@@ -1,5 +1,6 @@
-#include "structs.c"
+#include "structs.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
@@ -88,29 +89,73 @@ void get_screen_width(size_t *rows, size_t *cols) {
   *cols = w.ws_col;
 }
 
-void print_text_on_center(const char *string, size_t string_len, size_t rows,
-                          size_t cols) {
-  clear_screen();
-  for (size_t i = 0; i < rows / 2; ++i) {
-    printf("\n");
-  }
-  if (string_len < cols) {
-    size_t padding = (cols - string_len) / 2;
-    for (size_t i = 0; i < padding; ++i) {
-      printf(" ");
+// только первая строка(название колонок) можно еще добавить вывод типа
+// А НАДО ЛИ ОНО?
+// size_t get_naming_line_size(Column *columns, size_t columns_count) {
+//   size_t result = 0;
+//   for (size_t i = 0; i < columns_count; ++i) {
+//     result += columns[i].name_length_column;
+//   }
+//   return result;
+// }
+
+// вся колонка с данными + название возвращает длину всей таблицы
+size_t get_rows_size(Table *table, size_t *result) {
+  size_t max_len_column = 0;
+  size_t curren_cell_size = 0;
+  size_t lenght_table = 0;
+  for (size_t i = 0; i < table->columns_count; ++i) {
+    max_len_column = table->columns[i].name_length_column;
+    for (size_t j = 0; j < table->row_count; ++j) {
+      curren_cell_size =
+          get_value_size(table->rows[j].values[i], table->columns[i].type);
+      if (max_len_column < curren_cell_size) {
+        max_len_column = curren_cell_size;
+      }
     }
+    lenght_table += max_len_column;
+    result[i] = max_len_column;
   }
-  printf("%s\n", string);
+  return lenght_table + (table->columns_count * 2) - 1;
 }
 
-int main() {
-  size_t a = 0, b = 0;
-  //   get_screen_width(&a, &b);
-  //   print_text_on_center("123", 3, a, b);
-  //   while (1) {
-  //   };
-  DataValue value;
-  value.double_val = 120.0;
-  printf("%d", (int)get_value_size(value, 2));
-  return 0;
+void print_table(Table *table) {
+  size_t rows = 0;
+  size_t cols = 0;
+  size_t table_length = 0;
+  size_t table_height = 0;
+  size_t *rows_size = malloc(sizeof(size_t) * table->columns_count);
+
+  get_screen_width(&rows, &cols);
+  table_length = get_rows_size(table, rows_size);
+  table_height = table->columns_count + 1;
+
+  for (size_t i = 0; i < (rows - table_height) / 2; ++i) {
+    printf("\n");
+  }
+
+  //  for (size_t i = 0; i < padding; ++i) {
+  //    printf(" ");
+  //  }
+
+  for (size_t i = 0; i < table->columns_count; ++i) {
+    if (i > 0) {
+      printf("|");
+    }
+    printf("%s", table->columns[i].name);
+  }
+
+  // const char **table_str = malloc(table_length * table_height);
+  for (size_t i = 0; i < table->row_count; ++i) {
+    printf("%*c", (int)(cols - table_height) / 2, ' ');
+    for (size_t j = 0; j < table->columns_count; ++j) {
+      if (j > 0) {
+        printf("|");
+      }
+      print_value(table->rows[i].values[j], table->columns[j].type,
+                  rows_size[i]);
+    }
+    printf("\n");
+  }
+  free(rows_size);
 }
