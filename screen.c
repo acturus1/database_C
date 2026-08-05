@@ -73,12 +73,12 @@ void print_value(DataValue value, DataType type, size_t padding) {
     break;
   case TYPE_STRING:
     printf("%-*s", (int)padding, value.string_val);
+    //    for (size_t i = 0; i < strlen(value.string_val); ++i) {
+    //      putchar(value.string_val[i]);
+    //    }
     break;
   case TYPE_BOOL:
     printf("%-*s", (int)padding, value.bool_val ? "true" : "false");
-    break;
-  default:
-    printf("%-*s", (int)padding, "?");
     break;
   }
 }

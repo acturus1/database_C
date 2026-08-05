@@ -195,7 +195,7 @@ void save_value_to_file(DataValue value, DataType type, bool is_null,
   case TYPE_STRING: {
     uint64_t value_str_len = (uint64_t)strlen(value.string_val);
     fwrite(&value_str_len, sizeof(value_str_len), 1, file);
-    fwrite(&value.string_val, value_str_len, 1, file);
+    fwrite(value.string_val, value_str_len, 1, file);
     break;
   }
   case TYPE_BOOL: {
@@ -304,6 +304,7 @@ void read_value_from_file(DataValue *value, DataType type, bool *is_null,
       fread(&value_str_len, sizeof(value_str_len), 1, file);
       value->string_val = malloc(value_str_len + 1);
       fread(value->string_val, value_str_len, 1, file);
+
       value->string_val[value_str_len] = '\0';
       break;
     }
@@ -313,6 +314,8 @@ void read_value_from_file(DataValue *value, DataType type, bool *is_null,
       value->bool_val = (bool_to_int == 1);
       break;
     }
+    default:
+      break;
     }
   }
 }
