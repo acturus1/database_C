@@ -92,18 +92,8 @@ void get_screen_width(size_t *rows, size_t *cols) {
   *cols = w.ws_col;
 }
 
-// только первая строка(название колонок) можно еще добавить вывод типа
-// А НАДО ЛИ ОНО?
-// size_t get_naming_line_size(Column *columns, size_t columns_count) {
-//   size_t result = 0;
-//   for (size_t i = 0; i < columns_count; ++i) {
-//     result += columns[i].name_length_column;
-//   }
-//   return result;
-// }
-
 // вся колонка с данными + название возвращает длину всей таблицы
-size_t get_rows_size(Table *table, size_t *result) {
+size_t get_cols_size(Table *table, size_t *result) {
   size_t max_len_column = 0;
   size_t curren_cell_size = 0;
   size_t lenght_table = 0;
@@ -128,10 +118,10 @@ void print_table(Table *table) {
   size_t cols = 0;
   size_t table_width = 0;
   size_t table_height = 0;
-  size_t *rows_size = malloc(sizeof(size_t) * table->columns_count);
+  size_t *cols_size = malloc(sizeof(size_t) * table->columns_count);
 
   get_screen_width(&rows, &cols);
-  table_width = get_rows_size(table, rows_size);
+  table_width = get_cols_size(table, cols_size);
   table_height = table->row_count;
 
   for (size_t i = 0; i < (rows - table_height) / 2; ++i) {
@@ -144,7 +134,18 @@ void print_table(Table *table) {
     if (i > 0) {
       printf("|");
     }
-    printf("%-*s", (int)rows_size[i], table->columns[i].name);
+    printf("%-*s", (int)cols_size[i], table->columns[i].name);
+  }
+  printf("\n");
+
+  printf("%*c", (int)(cols - table_width) / 2, ' ');
+  for (size_t i = 0; i < table->columns_count; ++i) {
+    if (i > 0) {
+      printf("*");
+    }
+    for (size_t j = 0; j < cols_size[i]; ++j) {
+      printf("-");
+    }
   }
   printf("\n");
 
@@ -155,9 +156,9 @@ void print_table(Table *table) {
         printf("|");
       }
       print_value(table->rows[i].values[j], table->columns[j].type,
-                  rows_size[j]);
+                  cols_size[j]);
     }
     printf("\n");
   }
-  free(rows_size);
+  free(cols_size);
 }
