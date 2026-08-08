@@ -103,7 +103,7 @@ void insert_row(Table *table, Row *row_insert) {
   table->row_count++;
 }
 
-// TODO Добавить удаление через флаг is_deleted
+// TODO Добавить раз в определенный промежуток удаление из памяти на совсем
 void delete_row(Table *table, size_t id) {
   for (size_t i = 0; i < table->row_count; ++i) {
     if (table->rows[i].system_id == id) {
