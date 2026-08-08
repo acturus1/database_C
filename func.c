@@ -1,4 +1,5 @@
 #include "structs.h"
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,6 +8,7 @@
 Table *create_table(const char *name, const char **col_names,
                     DataType *col_types, size_t col_count);
 void insert_row(Table *table, Row *row_insert);
+void delete_row(Table *table, size_t id);
 Database *create_database(const char *name);
 void add_table_to_database(Database *database, Table *table);
 void free_table(Table *table);
@@ -14,7 +16,7 @@ void free_database(Database *database);
 void save_database_to_file(Database *database, char *filename);
 void save_table_to_file(Table *table, FILE *file);
 void save_row_to_file(Row row, Column *columns, size_t colimns_count,
-                      FILE *file);
+                      bool is_deleted, FILE *file);
 void save_value_to_file(DataValue value, DataType type, bool is_null,
                         FILE *file);
 void read_database_from_file(Database *database, char *filename);
@@ -74,7 +76,7 @@ void insert_row(Table *table, Row *row_insert) {
   }
   // table->rows[table->row_count].values = values;
   Row *row = &table->rows[table->row_count];
-  // TODO row->system_id = table->row_count + 1;
+  row->system_id = table->row_count + 1;
   row->values = malloc(table->columns_count * sizeof(DataValue));
   if (row->values == NULL) {
     return;
@@ -85,6 +87,9 @@ void insert_row(Table *table, Row *row_insert) {
     free(row->values);
     return;
   }
+
+  row->is_deleted = row_insert->is_deleted;
+
   for (size_t i = 0; i < table->columns_count; ++i) {
     row->is_null[i] = row_insert->is_null[i];
     if (!row->is_null[i]) {
@@ -96,6 +101,16 @@ void insert_row(Table *table, Row *row_insert) {
     }
   }
   table->row_count++;
+}
+
+// TODO Добавить удаление через флаг is_deleted
+void delete_row(Table *table, size_t id) {
+  for (size_t i = 0; i < table->row_count; ++i) {
+    if (table->rows[i].system_id == id) {
+      table->rows[i].is_deleted = true;
+      return;
+    }
+  }
 }
 
 Database *create_database(const char *name) {
@@ -207,7 +222,9 @@ void save_value_to_file(DataValue value, DataType type, bool is_null,
 }
 
 void save_row_to_file(Row row, Column *columns, size_t colimns_count,
-                      FILE *file) {
+                      bool is_deleted, FILE *file) {
+  uint8_t int_is_deleted = (is_deleted) ? 1 : 0;
+  fwrite(&int_is_deleted, sizeof(uint8_t), 1, file);
   for (uint64_t i = 0; i < (uint64_t)colimns_count; ++i) {
     save_value_to_file(row.values[i], columns[i].type, row.is_null[i], file);
   }
@@ -236,7 +253,7 @@ void save_table_to_file(Table *table, FILE *file) {
 
   for (uint64_t i = 0; i < table_row_count; ++i) {
     save_row_to_file(table->rows[i], table->columns, table->columns_count,
-                     file);
+                     table->rows[i].is_deleted, file);
   }
 }
 
@@ -322,6 +339,10 @@ void read_value_from_file(DataValue *value, DataType type, bool *is_null,
 
 void read_row_from_file(Row *row, Column *columns, size_t colimns_count,
                         FILE *file) {
+  uint8_t is_deleted_byte;
+  fread(&is_deleted_byte, sizeof(uint8_t), 1, file);
+  row->is_deleted = (is_deleted_byte == 1);
+
   for (uint64_t i = 0; i < (uint64_t)colimns_count; ++i) {
     read_value_from_file(&row->values[i], columns[i].type, &row->is_null[i],
                          file);

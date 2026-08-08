@@ -150,15 +150,17 @@ void print_table(Table *table) {
   printf("\n");
 
   for (size_t i = 0; i < table->row_count; ++i) {
-    printf("%*c", (int)(cols - table_width) / 2, ' ');
-    for (size_t j = 0; j < table->columns_count; ++j) {
-      if (j > 0) {
-        printf("|");
+    if (table->rows[i].is_deleted == 0) {
+      printf("%*c", (int)(cols - table_width) / 2, ' ');
+      for (size_t j = 0; j < table->columns_count; ++j) {
+        if (j > 0) {
+          printf("|");
+        }
+        print_value(table->rows[i].values[j], table->columns[j].type,
+                    cols_size[j]);
       }
-      print_value(table->rows[i].values[j], table->columns[j].type,
-                  cols_size[j]);
+      printf("\n");
     }
-    printf("\n");
   }
   free(cols_size);
 }
